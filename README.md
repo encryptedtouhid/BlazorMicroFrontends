@@ -1,6 +1,6 @@
 # Blazor WebAssembly Micro Frontends Demo
 
-This project demonstrates a complete, **fully functional** implementation of the micro frontends architecture using Blazor WebAssembly, as described in the accompanying blog post.
+This project demonstrates a complete, **fully functional** implementation of the micro frontends architecture using Blazor WebAssembly.
 
 ![image](https://github.com/user-attachments/assets/b3c39dad-9536-4c6d-b89e-29485d35f705)
 
