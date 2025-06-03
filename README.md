@@ -63,7 +63,7 @@ This solution implements a production-ready micro frontends architecture with th
 
 ### 1. Clone the Repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/encryptedtouhid/BlazorMicroFrontends.git
 cd BlazorMicroFrontends
 ```
 
