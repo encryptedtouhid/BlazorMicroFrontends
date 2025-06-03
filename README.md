@@ -333,14 +333,6 @@ This pattern is ideal for:
 - Runtime performance: Excellent for complex business logic
 - Not recommended for: Public websites requiring SEO or mobile-first applications
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
 ## 📄 License
 
 This project is provided as an educational example. Feel free to use and modify as needed for your own projects.
