@@ -1,0 +1,37 @@
+@inherits LayoutComponentBase
+@inject IMicroFrontendHost Host
+@inject ISharedUserContext UserContext
+@inject IMicroFrontendEventBus EventBus
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <UserInfo />
+        </div>
+
+        <article class="content px-4">            <ModuleErrorBoundary>
+                @Body
+            </ModuleErrorBoundary>
+        </article>
+    </main>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        // Register modules on startup
+        var orderModule = new OrderManagement.Module.OrderManagementModule();
+        var productModule = new ProductCatalog.Module.ProductCatalogModule();
+        
+        await Host.RegisterModuleAsync(orderModule);
+        await Host.RegisterModuleAsync(productModule);
+        
+        // Load critical modules
+        await Host.LoadModuleAsync("OrderManagement");
+        await Host.LoadModuleAsync("ProductCatalog");
+    }
+}

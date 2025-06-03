@@ -1,0 +1,16 @@
+
+
+/src/ProductCatalog.Module/bin
+/src/ProductCatalog.Module/obj
+
+/src/Shared.Infrastructure/obj
+/src/Shared.Infrastructure/bin
+
+/src/Shared.Contracts/obj
+/src/Shared.Contracts/bin
+
+/src/OrderManagement.Module/obj
+/src/OrderManagement.Module/bin
+
+/src/Host.App/bin
+/src/Host.App/obj

@@ -1,0 +1,228 @@
+@page "/events"
+@inject IMicroFrontendEventBus EventBus
+@implements IDisposable
+
+<PageTitle>Event Log - Micro Frontends</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1>📊 Event Log</h1>
+            <p class="lead">Real-time monitoring of micro frontend events and communications.</p>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="module-container">
+                <div class="module-header d-flex justify-content-between align-items-center">
+                    <h3 class="module-title">🔔 Live Events</h3>
+                    <div>
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="ClearEvents">
+                            🗑️ Clear
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" @onclick="TogglePause">
+                            @(isPaused ? "▶️ Resume" : "⏸️ Pause")
+                        </button>
+                    </div>
+                </div>
+
+                <div class="event-log">
+                    @if (events.Any())
+                    {
+                        @foreach (var eventItem in events.TakeLast(50).Reverse())
+                        {
+                            <div class="event-item">
+                                <strong>[@eventItem.Timestamp.ToString("HH:mm:ss")]</strong>
+                                <span class="badge badge-info">@eventItem.EventName</span>
+                                @eventItem.Details
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-muted text-center py-4">
+                            <p>No events recorded yet. Navigate to different modules to see events.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="module-container">
+                <div class="module-header">
+                    <h3 class="module-title">🧪 Test Events</h3>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="testEventName" class="form-label">Event Name:</label>
+                    <input type="text" class="form-control" id="testEventName" @bind="testEventName" placeholder="test.event" />
+                </div>
+                
+                <div class="mb-3">
+                    <label for="testEventData" class="form-label">Event Data (JSON):</label>
+                    <textarea class="form-control" id="testEventData" @bind="testEventData" rows="3" placeholder='{"message": "Hello World"}'></textarea>
+                </div>
+                
+                <button class="btn btn-primary" @onclick="SendTestEvent">
+                    📤 Send Test Event
+                </button>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="module-container">
+                <div class="module-header">
+                    <h3 class="module-title">📈 Event Statistics</h3>
+                </div>
+                
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Total Events
+                        <span class="badge badge-primary badge-pill">@events.Count</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Module Loaded Events
+                        <span class="badge badge-success badge-pill">@events.Count(e => e.EventName == "module.loaded")</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Module Error Events
+                        <span class="badge badge-danger badge-pill">@events.Count(e => e.EventName == "module.error")</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Navigation Events
+                        <span class="badge badge-info badge-pill">@events.Count(e => e.EventName == "module.navigation")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<EventLogItem> events = new();
+    private bool isPaused = false;
+    private string testEventName = "test.event";
+    private string testEventData = @"{""message"": ""Hello World"", ""timestamp"": """ + DateTime.Now.ToString("O") + @"""}";
+
+    private class EventLogItem
+    {
+        public DateTime Timestamp { get; set; }
+        public string EventName { get; set; } = string.Empty;
+        public string Details { get; set; } = string.Empty;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to all events
+        EventBus.Subscribe<object>("module.loaded", OnModuleLoaded);
+        EventBus.Subscribe<object>("module.error", OnModuleError);
+        EventBus.Subscribe<object>("module.navigation", OnModuleNavigation);
+        EventBus.Subscribe<object>("test.event", OnTestEvent);
+        EventBus.Subscribe<object>("order.created", OnOrderEvent);
+        EventBus.Subscribe<object>("product.viewed", OnProductEvent);
+
+        // Add some initial events
+        await AddEvent("system.started", "Event monitoring initialized");
+    }
+
+    private async Task OnModuleLoaded(object data)
+    {
+        if (!isPaused && data is ModuleLoadedEvent moduleEvent)
+        {
+            await AddEvent("module.loaded", $"Module '{moduleEvent.ModuleName}' v{moduleEvent.Version} loaded in {moduleEvent.LoadTime.TotalMilliseconds}ms");
+        }
+    }
+
+    private async Task OnModuleError(object data)
+    {
+        if (!isPaused && data is ModuleErrorEvent errorEvent)
+        {
+            await AddEvent("module.error", $"❌ Error in '{errorEvent.ModuleName}': {errorEvent.ErrorMessage}");
+        }
+    }
+
+    private async Task OnModuleNavigation(object data)
+    {
+        if (!isPaused && data is ModuleNavigationEvent navEvent)
+        {
+            await AddEvent("module.navigation", $"🧭 Navigation in '{navEvent.ModuleName}': {navEvent.FromRoute} → {navEvent.ToRoute}");
+        }
+    }
+
+    private async Task OnTestEvent(object data)
+    {
+        if (!isPaused)
+        {
+            await AddEvent("test.event", $"🧪 Test event received: {System.Text.Json.JsonSerializer.Serialize(data)}");
+        }
+    }
+
+    private async Task OnOrderEvent(object data)
+    {
+        if (!isPaused)
+        {
+            await AddEvent("order.created", $"📦 Order event: {System.Text.Json.JsonSerializer.Serialize(data)}");
+        }
+    }
+
+    private async Task OnProductEvent(object data)
+    {
+        if (!isPaused)
+        {
+            await AddEvent("product.viewed", $"🛍️ Product event: {System.Text.Json.JsonSerializer.Serialize(data)}");
+        }
+    }
+
+    private async Task AddEvent(string eventName, string details)
+    {
+        events.Add(new EventLogItem
+        {
+            Timestamp = DateTime.Now,
+            EventName = eventName,
+            Details = details
+        });
+
+        // Keep only last 1000 events to prevent memory issues
+        if (events.Count > 1000)
+        {
+            events.RemoveRange(0, events.Count - 1000);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void ClearEvents()
+    {
+        events.Clear();
+        StateHasChanged();
+    }
+
+    private void TogglePause()
+    {
+        isPaused = !isPaused;
+        StateHasChanged();
+    }
+
+    private async Task SendTestEvent()
+    {        try
+        {
+            var data = System.Text.Json.JsonSerializer.Deserialize<object>(testEventData) ?? new object();
+            await EventBus.PublishAsync(testEventName, data);
+        }
+        catch (Exception ex)
+        {
+            await AddEvent("system.error", $"Failed to send test event: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        // In a real implementation, you would unsubscribe from events here
+        // EventBus.Unsubscribe("module.loaded");
+        // etc.
+    }
+}

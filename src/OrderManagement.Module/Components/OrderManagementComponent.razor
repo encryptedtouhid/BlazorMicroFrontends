@@ -1,0 +1,316 @@
+@using OrderManagement.Module.Models
+@using Shared.Contracts
+@inject ISharedUserContext UserContext
+@inject IMicroFrontendEventBus EventBus
+
+<div class="module-container">
+    <div class="module-header">
+        <h2 class="module-title">📦 Order Management Module</h2>
+        <p>Manage customer orders and track order status</p>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4>📋 Orders List</h4>
+                    <button class="btn btn-primary" @onclick="CreateNewOrder">
+                        ➕ New Order
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (orders.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Customer</th>
+                                        <th>Date</th>
+                                        <th>Items</th>
+                                        <th>Total</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var order in orders.OrderByDescending(o => o.OrderDate))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <small class="text-muted">@order.Id.Substring(0, 8)...</small>
+                                            </td>
+                                            <td>
+                                                <strong>@order.CustomerName</strong><br>
+                                                <small class="text-muted">@order.CustomerEmail</small>
+                                            </td>
+                                            <td>@order.OrderDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                            <td>@order.Items.Count item(s)</td>
+                                            <td><strong>$@order.TotalAmount.ToString("F2")</strong></td>
+                                            <td>
+                                                <span class="badge @GetStatusBadgeClass(order.Status)">
+                                                    @order.Status
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewOrder(order)">
+                                                    👁️ View
+                                                </button>
+                                                @if (order.Status == OrderStatus.Pending)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-success" @onclick="() => ProcessOrder(order)">
+                                                        ⚡ Process
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <p class="text-muted">No orders found. Click "New Order" to create your first order.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            @if (selectedOrder != null)
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <h5>📄 Order Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>Customer:</strong> @selectedOrder.CustomerName<br>
+                            <strong>Email:</strong> @selectedOrder.CustomerEmail<br>
+                            <strong>Date:</strong> @selectedOrder.OrderDate.ToString("yyyy-MM-dd HH:mm")<br>
+                            <strong>Status:</strong> 
+                            <span class="badge @GetStatusBadgeClass(selectedOrder.Status)">
+                                @selectedOrder.Status
+                            </span>
+                        </div>
+
+                        <h6>Order Items:</h6>
+                        @if (selectedOrder.Items.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var item in selectedOrder.Items)
+                                {
+                                    <div class="list-group-item px-0">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <strong>@item.ProductName</strong><br>
+                                                <small class="text-muted">Qty: @item.Quantity × $@item.UnitPrice.ToString("F2")</small>
+                                            </div>
+                                            <strong>$@item.TotalPrice.ToString("F2")</strong>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            <div class="mt-3 pt-2 border-top">
+                                <div class="d-flex justify-content-between">
+                                    <strong>Total:</strong>
+                                    <strong>$@selectedOrder.TotalAmount.ToString("F2")</strong>
+                                </div>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(selectedOrder.Notes))
+                        {
+                            <div class="mt-3">
+                                <h6>Notes:</h6>
+                                <p class="text-muted">@selectedOrder.Notes</p>
+                            </div>
+                        }
+
+                        <div class="mt-3">
+                            <button class="btn btn-sm btn-secondary" @onclick="() => selectedOrder = null">
+                                ← Back to List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <h5>📊 Order Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h3 class="text-primary">@orders.Count</h3>
+                                <small class="text-muted">Total Orders</small>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="text-success">$@orders.Sum(o => o.TotalAmount).ToString("F2")</h3>
+                                <small class="text-muted">Total Revenue</small>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h4 class="text-warning">@orders.Count(o => o.Status == OrderStatus.Pending)</h4>
+                                <small class="text-muted">Pending</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="text-info">@orders.Count(o => o.Status == OrderStatus.Processing)</h4>
+                                <small class="text-muted">Processing</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Order> orders = new();
+    private Order? selectedOrder = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check user permissions
+        var canViewOrders = await UserContext.HasPermissionAsync("orders.view");
+        if (!canViewOrders)
+        {
+            // In a real app, you'd redirect or show an error
+            return;
+        }
+
+        // Load sample orders
+        LoadSampleOrders();
+
+        // Publish navigation event
+        await EventBus.PublishAsync("module.navigation", new ModuleNavigationEvent
+        {
+            ModuleName = "OrderManagement",
+            ToRoute = "/orders",
+            FromRoute = ""
+        });
+    }
+
+    private void LoadSampleOrders()
+    {
+        orders = new List<Order>
+        {
+            new Order
+            {
+                CustomerName = "John Doe",
+                CustomerEmail = "john.doe@example.com",
+                OrderDate = DateTime.UtcNow.AddDays(-2),
+                Status = OrderStatus.Delivered,
+                Items = new List<OrderItem>
+                {
+                    new OrderItem { ProductName = "Laptop Computer", Quantity = 1, UnitPrice = 999.99m },
+                    new OrderItem { ProductName = "Wireless Mouse", Quantity = 1, UnitPrice = 29.99m }
+                },
+                Notes = "Express delivery requested"
+            },
+            new Order
+            {
+                CustomerName = "Jane Smith",
+                CustomerEmail = "jane.smith@example.com",
+                OrderDate = DateTime.UtcNow.AddDays(-1),
+                Status = OrderStatus.Processing,
+                Items = new List<OrderItem>
+                {
+                    new OrderItem { ProductName = "Smartphone", Quantity = 1, UnitPrice = 699.99m },
+                    new OrderItem { ProductName = "Phone Case", Quantity = 1, UnitPrice = 19.99m }
+                }
+            },
+            new Order
+            {
+                CustomerName = "Bob Johnson",
+                CustomerEmail = "bob.johnson@example.com",
+                OrderDate = DateTime.UtcNow.AddHours(-3),
+                Status = OrderStatus.Pending,
+                Items = new List<OrderItem>
+                {
+                    new OrderItem { ProductName = "Tablet", Quantity = 2, UnitPrice = 299.99m }
+                }
+            }
+        };
+    }
+
+    private async Task CreateNewOrder()
+    {
+        var canCreateOrders = await UserContext.HasPermissionAsync("orders.create");
+        if (!canCreateOrders)
+        {
+            await EventBus.PublishAsync("module.error", new ModuleErrorEvent
+            {
+                ModuleName = "OrderManagement",
+                ErrorMessage = "Insufficient permissions to create orders"
+            });
+            return;
+        }
+
+        var newOrder = new Order
+        {
+            CustomerName = "New Customer",
+            CustomerEmail = "customer@example.com",
+            Items = new List<OrderItem>
+            {
+                new OrderItem { ProductName = "Sample Product", Quantity = 1, UnitPrice = 99.99m }
+            }
+        };
+
+        orders.Add(newOrder);
+        selectedOrder = newOrder;
+
+        // Publish order creation event
+        await EventBus.PublishAsync("order.created", new
+        {
+            OrderId = newOrder.Id,
+            CustomerName = newOrder.CustomerName,
+            TotalAmount = newOrder.TotalAmount,
+            Timestamp = DateTime.UtcNow
+        });
+
+        StateHasChanged();
+    }
+
+    private void ViewOrder(Order order)
+    {
+        selectedOrder = order;
+        StateHasChanged();
+    }
+
+    private async Task ProcessOrder(Order order)
+    {
+        order.Status = OrderStatus.Processing;
+        
+        await EventBus.PublishAsync("order.status.changed", new
+        {
+            OrderId = order.Id,
+            NewStatus = order.Status.ToString(),
+            Timestamp = DateTime.UtcNow
+        });
+
+        StateHasChanged();
+    }
+
+    private string GetStatusBadgeClass(OrderStatus status)
+    {
+        return status switch
+        {
+            OrderStatus.Pending => "badge-warning",
+            OrderStatus.Processing => "badge-info",
+            OrderStatus.Shipped => "badge-primary",
+            OrderStatus.Delivered => "badge-success",
+            OrderStatus.Cancelled => "badge-danger",
+            _ => "badge-secondary"
+        };
+    }
+}

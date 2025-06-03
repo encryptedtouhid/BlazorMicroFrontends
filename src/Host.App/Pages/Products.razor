@@ -1,0 +1,9 @@
+@page "/products"
+@using ProductCatalog.Module.Components
+@inject IMicroFrontendHost Host
+
+<PageTitle>Product Catalog</PageTitle>
+
+<ModuleErrorBoundary ModuleName="ProductCatalog">
+    <ProductCatalogComponent />
+</ModuleErrorBoundary>

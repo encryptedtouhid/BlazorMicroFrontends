@@ -1,0 +1,9 @@
+@page "/orders"
+@using OrderManagement.Module.Components
+@inject IMicroFrontendHost Host
+
+<PageTitle>Order Management</PageTitle>
+
+<ModuleErrorBoundary ModuleName="OrderManagement">
+    <OrderManagementComponent />
+</ModuleErrorBoundary>

@@ -1,0 +1,381 @@
+@using ProductCatalog.Module.Models
+@using Shared.Contracts
+@inject ISharedUserContext UserContext
+@inject IMicroFrontendEventBus EventBus
+
+<div class="module-container">
+    <div class="module-header">
+        <h2 class="module-title">🛍️ Product Catalog Module</h2>
+        <p>Browse and manage product inventory</p>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Search products..." @bind="searchTerm" @oninput="OnSearchChanged" />
+                <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="button">
+                        🔍
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select class="form-control" @bind="selectedCategory" @onchange="OnCategoryChanged">
+                <option value="">All Categories</option>
+                @foreach (var category in categories)
+                {
+                    <option value="@category.Name">@category.Name (@category.ProductCount)</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button class="btn btn-primary" @onclick="AddNewProduct">
+                ➕ Add Product
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        @if (filteredProducts.Any())
+        {
+            @foreach (var product in filteredProducts)
+            {
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">@product.Name</h6>
+                            <span class="badge @(product.StockQuantity > 0 ? "badge-success" : "badge-danger")">
+                                @(product.StockQuantity > 0 ? $"{product.StockQuantity} in stock" : "Out of stock")
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text text-muted">@product.Description</p>
+                            
+                            <div class="mb-2">
+                                <span class="badge badge-secondary">@product.Category</span>
+                                @if (product.Tags.Any())
+                                {
+                                    @foreach (var tag in product.Tags.Take(2))
+                                    {
+                                        <span class="badge badge-light">@tag</span>
+                                    }
+                                }
+                            </div>
+
+                            <div class="price-section">
+                                @if (product.DiscountPercent.HasValue)
+                                {
+                                    <h5>
+                                        <span class="text-danger">$@product.DiscountedPrice.ToString("F2")</span>
+                                        <small class="text-muted"><strike>$@product.Price.ToString("F2")</strike></small>
+                                        <span class="badge badge-warning">@product.DiscountPercent%% OFF</span>
+                                    </h5>
+                                }
+                                else
+                                {
+                                    <h5 class="text-success">$@product.Price.ToString("F2")</h5>
+                                }
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="btn-group w-100" role="group">
+                                <button class="btn btn-outline-primary btn-sm" @onclick="() => ViewProduct(product)">
+                                    👁️ View
+                                </button>
+                                <button class="btn btn-outline-success btn-sm" @onclick="() => SelectProduct(product)" 
+                                        disabled="@(product.StockQuantity == 0)">
+                                    ✅ Select
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" @onclick="() => EditProduct(product)">
+                                    ✏️ Edit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <h4 class="text-muted">No products found</h4>
+                    <p class="text-muted">Try adjusting your search criteria or add some products.</p>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (selectedProduct != null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5)">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">📄 Product Details</h5>
+                        <button type="button" class="close" @onclick="CloseProductModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h4>@selectedProduct.Name</h4>
+                                <p class="text-muted">@selectedProduct.Description</p>
+                                
+                                <div class="mb-3">
+                                    <strong>Category:</strong> @selectedProduct.Category<br>
+                                    <strong>Stock:</strong> @selectedProduct.StockQuantity units<br>
+                                    <strong>Created:</strong> @selectedProduct.CreatedDate.ToString("yyyy-MM-dd")
+                                </div>
+
+                                @if (selectedProduct.Tags.Any())
+                                {
+                                    <div class="mb-3">
+                                        <strong>Tags:</strong><br>
+                                        @foreach (var tag in selectedProduct.Tags)
+                                        {
+                                            <span class="badge badge-light mr-1">@tag</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body text-center">
+                                        <div class="price-display">
+                                            @if (selectedProduct.DiscountPercent.HasValue)
+                                            {
+                                                <h2 class="text-danger">$@selectedProduct.DiscountedPrice.ToString("F2")</h2>
+                                                <p class="text-muted"><strike>$@selectedProduct.Price.ToString("F2")</strike></p>
+                                                <span class="badge badge-warning">@selectedProduct.DiscountPercent%% OFF</span>
+                                            }
+                                            else
+                                            {
+                                                <h2 class="text-success">$@selectedProduct.Price.ToString("F2")</h2>
+                                            }
+                                        </div>
+                                        
+                                        <div class="mt-3">
+                                            <button class="btn btn-success btn-lg" @onclick="() => SelectProduct(selectedProduct)"
+                                                    disabled="@(selectedProduct.StockQuantity == 0)">
+                                                @(selectedProduct.StockQuantity > 0 ? "✅ Select Product" : "❌ Out of Stock")
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseProductModal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Product> products = new();
+    private List<Product> filteredProducts = new();
+    private List<ProductCategory> categories = new();
+    private Product? selectedProduct = null;
+    private string searchTerm = string.Empty;
+    private string selectedCategory = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check user permissions
+        var canViewProducts = await UserContext.HasPermissionAsync("products.view");
+        if (!canViewProducts)
+        {
+            return;
+        }
+
+        // Load sample products
+        LoadSampleProducts();
+        UpdateCategories();
+        FilterProducts();
+
+        // Publish navigation event
+        await EventBus.PublishAsync("module.navigation", new ModuleNavigationEvent
+        {
+            ModuleName = "ProductCatalog",
+            ToRoute = "/products",
+            FromRoute = ""
+        });
+    }
+
+    private void LoadSampleProducts()
+    {
+        products = new List<Product>
+        {
+            new Product
+            {
+                Name = "Laptop Computer",
+                Description = "High-performance laptop with 16GB RAM and SSD storage",
+                Price = 999.99m,
+                Category = "Electronics",
+                StockQuantity = 15,
+                Tags = new List<string> { "computer", "laptop", "business" },
+                DiscountPercent = 10
+            },
+            new Product
+            {
+                Name = "Wireless Mouse",
+                Description = "Ergonomic wireless mouse with optical sensor",
+                Price = 29.99m,
+                Category = "Electronics",
+                StockQuantity = 50,
+                Tags = new List<string> { "mouse", "wireless", "accessory" }
+            },
+            new Product
+            {
+                Name = "Office Chair",
+                Description = "Comfortable ergonomic office chair with lumbar support",
+                Price = 299.99m,
+                Category = "Furniture",
+                StockQuantity = 8,
+                Tags = new List<string> { "chair", "office", "ergonomic" },
+                DiscountPercent = 15
+            },
+            new Product
+            {
+                Name = "Smartphone",
+                Description = "Latest smartphone with advanced camera system",
+                Price = 699.99m,
+                Category = "Electronics",
+                StockQuantity = 25,
+                Tags = new List<string> { "phone", "mobile", "camera" }
+            },
+            new Product
+            {
+                Name = "Desk Organizer",
+                Description = "Wooden desk organizer with multiple compartments",
+                Price = 49.99m,
+                Category = "Office Supplies",
+                StockQuantity = 30,
+                Tags = new List<string> { "organizer", "wood", "desk" }
+            },
+            new Product
+            {
+                Name = "Tablet",
+                Description = "10-inch tablet with high-resolution display",
+                Price = 299.99m,
+                Category = "Electronics",
+                StockQuantity = 0,
+                Tags = new List<string> { "tablet", "mobile", "display" }
+            }
+        };
+    }
+
+    private void UpdateCategories()
+    {
+        categories = products
+            .GroupBy(p => p.Category)
+            .Select(g => new ProductCategory
+            {
+                Name = g.Key,
+                ProductCount = g.Count()
+            })
+            .ToList();
+    }
+
+    private void FilterProducts()
+    {
+        filteredProducts = products.Where(p =>
+            (string.IsNullOrEmpty(searchTerm) || 
+             p.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             p.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+             p.Tags.Any(t => t.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))) &&
+            (string.IsNullOrEmpty(selectedCategory) || p.Category == selectedCategory)
+        ).ToList();
+    }
+
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        FilterProducts();
+    }
+
+    private void OnCategoryChanged()
+    {
+        FilterProducts();
+    }
+
+    private void ViewProduct(Product product)
+    {
+        selectedProduct = product;
+        
+        // Publish product view event
+        _ = Task.Run(async () =>
+        {
+            await EventBus.PublishAsync("product.viewed", new
+            {
+                ProductId = product.Id,
+                ProductName = product.Name,
+                Category = product.Category,
+                Price = product.Price,
+                Timestamp = DateTime.UtcNow
+            });
+        });
+    }
+
+    private async Task SelectProduct(Product product)
+    {
+        if (product.StockQuantity <= 0)
+            return;
+
+        // Publish product selection event for other modules (like OrderManagement)
+        await EventBus.PublishAsync("product.selected", new
+        {
+            ProductId = product.Id,
+            ProductName = product.Name,
+            Price = product.DiscountedPrice,
+            Category = product.Category,
+            Timestamp = DateTime.UtcNow
+        });
+
+        selectedProduct = null;
+        StateHasChanged();
+    }
+
+    private void EditProduct(Product product)
+    {
+        // In a real implementation, this would open an edit form
+        _ = Task.Run(async () =>
+        {
+            await EventBus.PublishAsync("product.edit.requested", new
+            {
+                ProductId = product.Id,
+                ProductName = product.Name,
+                Timestamp = DateTime.UtcNow
+            });
+        });
+    }
+
+    private void AddNewProduct()
+    {
+        var newProduct = new Product
+        {
+            Name = "New Product",
+            Description = "Description for new product",
+            Price = 99.99m,
+            Category = "Electronics",
+            StockQuantity = 10,
+            Tags = new List<string> { "new", "sample" }
+        };
+
+        products.Add(newProduct);
+        UpdateCategories();
+        FilterProducts();
+        StateHasChanged();
+    }
+
+    private void CloseProductModal()
+    {
+        selectedProduct = null;
+    }
+}
