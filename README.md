@@ -2,6 +2,9 @@
 
 This project demonstrates a complete, **fully functional** implementation of the micro frontends architecture using Blazor WebAssembly, as described in the accompanying blog post.
 
+![image](https://github.com/user-attachments/assets/b3c39dad-9536-4c6d-b89e-29485d35f705)
+
+
 ## 🎯 What You'll Find Here
 
 This is a **working, runnable solution** that showcases real-world micro frontends patterns with:
