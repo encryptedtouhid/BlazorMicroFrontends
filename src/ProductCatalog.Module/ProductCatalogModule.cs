@@ -35,9 +35,7 @@ public class ProductCatalogModule : IMicroFrontend
     public Task<Type> GetComponentTypeAsync()
     {
         return Task.FromResult(typeof(Components.ProductCatalogComponent));
-    }
-
-    private async Task OnOrderCreated(object data)
+    }    private Task OnOrderCreated(object data)
     {
         // Handle order creation events to update inventory
         if (_host != null)
@@ -48,9 +46,10 @@ public class ProductCatalogModule : IMicroFrontend
                 Timestamp = DateTime.UtcNow
             });
         }
+        return Task.CompletedTask;
     }
 
-    private async Task OnProductAddedToOrder(object data)
+    private Task OnProductAddedToOrder(object data)
     {
         // Handle product being added to orders
         if (_host != null)
@@ -61,5 +60,6 @@ public class ProductCatalogModule : IMicroFrontend
                 Timestamp = DateTime.UtcNow
             });
         }
+        return Task.CompletedTask;
     }
 }

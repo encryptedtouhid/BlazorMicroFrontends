@@ -14,3 +14,5 @@
 
 /src/Host.App/bin
 /src/Host.App/obj
+
+.fake

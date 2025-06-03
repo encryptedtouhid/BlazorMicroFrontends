@@ -37,9 +37,7 @@ public class OrderManagementModule : IMicroFrontend
     public Task<Type> GetComponentTypeAsync()
     {
         return Task.FromResult(typeof(Components.OrderManagementComponent));
-    }
-
-    private async Task OnProductSelected(object data)
+    }    private Task OnProductSelected(object data)
     {
         // Handle product selection from other modules
         if (_host != null)
@@ -50,5 +48,6 @@ public class OrderManagementModule : IMicroFrontend
                 Timestamp = DateTime.UtcNow
             });
         }
+        return Task.CompletedTask;
     }
 }
